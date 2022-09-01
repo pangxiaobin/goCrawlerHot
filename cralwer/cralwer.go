@@ -332,6 +332,50 @@ func (c Crawler) CrawlerWangYiYun() Result {
 	return Result{"云音乐飙升榜", content, time.Now()}
 }
 
+func (c Crawler) CrawlerCSDN() Result {
+	client := &http.Client{
+		Timeout: time.Second * 10,
+	}
+	pages := [4]string{"0", "1", "2", "3"}
+	var content []map[string]interface{}
+	for _, page := range pages {
+		url := "https://blog.csdn.net/phoenix/web/blog/hot-rank?page=" + page + "&pageSize=25&type="
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			fmt.Println("CrawlerCSDN http.NewRequest err:", err)
+			continue
+		}
+		req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
+		res, err := client.Do(req)
+		if err != nil {
+			fmt.Println("CrawlerCSDN client.Do err:", err)
+			continue
+		}
+		str, _ := io.ReadAll(res.Body)
+		j, err := simplejson.NewJson(str)
+		if err != nil {
+			fmt.Println("CrawlerCSDN simplejson.NewJson err:", err)
+			continue
+		}
+		func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				fmt.Println("err:", err)
+			}
+		}(res.Body)
+		dataJson := j.Get("data")
+		dataArr := j.Get("data").MustArray()
+		for index := range dataArr {
+			info := dataJson.GetIndex(index)
+			title := info.Get("articleTitle").MustString()
+			href := info.Get("articleDetailUrl").MustString()
+			content = append(content, map[string]interface{}{"title": title, "href": href})
+		}
+	}
+
+	return Result{"CSDN热榜", content, time.Now()}
+}
+
 func ExecGetData(c Crawler, cr chan Result) {
 	reflectValue := reflect.ValueOf(c)
 	crawler := reflectValue.MethodByName(c.crawlerName)
@@ -348,7 +392,7 @@ func RunCrawlerAndWrite() {
 	// 文件创建
 	fmt.Println("开始时间：", time.Now())
 	allCrawler := []string{"CrawlerWeiBo", "CrawlerZhiHu", "CrawlerTieBa", "CrawlerDouBan", "CrawlerTianYa",
-		"CrawlerGithub", "CrawlerWangYiYun"}
+		"CrawlerGithub", "CrawlerWangYiYun", "CrawlerCSDN"}
 	cr := make(chan Result, len(allCrawler))
 	for _, value := range allCrawler {
 		wg.Add(1)
