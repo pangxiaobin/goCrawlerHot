@@ -55,7 +55,7 @@
                 var content_html = '';
                 if (index===0){
                     title_html ='<li class="layui-this" >'+element.hot_name+'</li>';
-                    if(element.content.length>0){
+                    if(element.content !== null){
                         let tr_td = '';
                         for (var i in element.content){
                             tr_td += '<tr><td><a href="'+ element.content[i].href + '"target="_blank">'+i+ '.&nbsp;'
@@ -68,7 +68,7 @@
                             '<tr><td>no data</td><tr'+'</table></div>'
                     }
                 }else {
-                    if(element.content.length>0){
+                    if(element.content !== null){
                         let tr_td = '';
                         for (var i in element.content){
                             tr_td += '<tr><td><a href="'+ element.content[i].href + '"target="_blank">'+ i+ '.&nbsp;'

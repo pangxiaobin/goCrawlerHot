@@ -1,6 +1,8 @@
 package cralwer
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
@@ -11,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -27,7 +30,8 @@ type Crawler struct {
 }
 
 // CrawlerWeiBo 爬取微博热榜信息
-func (c Crawler) CrawlerWeiBo() Result {
+func (c Crawler) CrawlerWeiBo() (Result, error) {
+	var content []map[string]interface{}
 	timeout := 10 * time.Second
 	client := &http.Client{
 		Timeout: timeout,
@@ -37,7 +41,7 @@ func (c Crawler) CrawlerWeiBo() Result {
 	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
 	if err != nil {
 		fmt.Println("CrawlerWeiBo http.NewRequest err:", err)
-		return Result{}
+		return Result{HotName: "新浪微博"}, err
 	}
 	res, err := client.Do(req)
 	if err != nil {
@@ -57,7 +61,6 @@ func (c Crawler) CrawlerWeiBo() Result {
 	if err != nil {
 		fmt.Println(" simplejson.NewJson err:", err)
 	}
-	var content []map[string]interface{}
 	cardGroup := j.Get("data").Get("cards").GetIndex(0).Get("card_group").MustArray()
 	for _, val := range cardGroup {
 		title := val.(map[string]interface{})["desc"]
@@ -66,11 +69,12 @@ func (c Crawler) CrawlerWeiBo() Result {
 	}
 	result := Result{"新浪微博", content, time.Now()}
 
-	return result
+	return result, nil
 }
 
 // CrawlerZhiHu 爬取知乎热榜信息
-func (c Crawler) CrawlerZhiHu() Result {
+func (c Crawler) CrawlerZhiHu() (Result, error) {
+	var content []map[string]interface{}
 	url := "https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total?limit=50&desktop=true"
 	timeout := 5 * time.Second
 	client := &http.Client{
@@ -79,7 +83,7 @@ func (c Crawler) CrawlerZhiHu() Result {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Println("CrawlerZhiHu http.NewRequest err:", err)
-		return Result{}
+		return Result{HotName: "知乎热榜"}, err
 	}
 	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
 	req.Header.Add("path", "/api/v3/feed/topstory/hot-lists/total?limit=50&desktop=true")
@@ -94,14 +98,13 @@ func (c Crawler) CrawlerZhiHu() Result {
 	}(res.Body)
 	if err != nil {
 		fmt.Println("CrawlerZhiHu client.Do err:", err)
-		return Result{}
+		return Result{HotName: "知乎热榜"}, err
 	}
-	var content []map[string]interface{}
 	body, _ := io.ReadAll(res.Body)
 	j, err := simplejson.NewJson(body)
 	if err != nil {
 		fmt.Println("")
-		return Result{}
+		return Result{HotName: "知乎热榜"}, err
 	}
 	dataJson := j.Get("data")
 	dataArr := j.Get("data").MustArray()
@@ -112,11 +115,12 @@ func (c Crawler) CrawlerZhiHu() Result {
 		content = append(content, map[string]interface{}{"title": title, "href": href})
 	}
 
-	return Result{"知乎热榜", content, time.Now()}
+	return Result{"知乎热榜", content, time.Now()}, nil
 }
 
 // CrawlerTieBa 爬取贴吧热榜
-func (c Crawler) CrawlerTieBa() Result {
+func (c Crawler) CrawlerTieBa() (Result, error) {
+	var content []map[string]interface{}
 	url := "https://tieba.baidu.com/hottopic/browse/topicList"
 	timeout := time.Second * 10
 	client := &http.Client{
@@ -125,12 +129,12 @@ func (c Crawler) CrawlerTieBa() Result {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Println("CrawlerTieBa http.NewRequest err:", err)
-		return Result{}
+		return Result{HotName: "贴吧"}, err
 	}
 	res, err := client.Do(req)
 	if err != nil {
 		fmt.Println("CrawlerTieBa client.Do err:", err)
-		return Result{}
+		return Result{HotName: "贴吧"}, err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -138,12 +142,12 @@ func (c Crawler) CrawlerTieBa() Result {
 			fmt.Println("err:", err)
 		}
 	}(res.Body)
-	var content []map[string]interface{}
+
 	str, _ := io.ReadAll(res.Body)
 	j, err := simplejson.NewJson(str)
 	if err != nil {
 		fmt.Println("CrawlerTieBa simplejson.NewJson err:", err)
-		return Result{}
+		return Result{HotName: "贴吧"}, err
 	}
 	topicList := j.Get("data").Get("bang_topic").Get("topic_list")
 	topicArr := topicList.MustArray()
@@ -152,12 +156,13 @@ func (c Crawler) CrawlerTieBa() Result {
 		href := topicList.GetIndex(index).Get("topic_url").MustString()
 		content = append(content, map[string]interface{}{"title": title, "href": href})
 	}
-	return Result{"贴吧", content, time.Now()}
+	return Result{"贴吧", content, time.Now()}, nil
 
 }
 
 // CrawlerDouBan 爬取豆瓣热榜
-func (c Crawler) CrawlerDouBan() Result {
+func (c Crawler) CrawlerDouBan() (Result, error) {
+	var content []map[string]interface{}
 	url := "https://www.douban.com/group/explore"
 	client := &http.Client{
 		Timeout: time.Second * 10,
@@ -165,7 +170,7 @@ func (c Crawler) CrawlerDouBan() Result {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Println("CrawlerDouBan http.NewRequest err:", err)
-		return Result{}
+		return Result{HotName: "豆瓣热榜"}, err
 	}
 	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
 	req.Header.Add("Upgrade-Insecure-Requests", "1")
@@ -173,7 +178,7 @@ func (c Crawler) CrawlerDouBan() Result {
 	res, err := client.Do(req)
 	if err != nil {
 		fmt.Println("CrawlerDouBan client.Do err:", err)
-		return Result{}
+		return Result{HotName: "豆瓣热榜"}, err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -187,9 +192,8 @@ func (c Crawler) CrawlerDouBan() Result {
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
 		fmt.Println("CrawlerDouBan goquery.NewDocumentFromReader err:", err)
-		return Result{}
+		return Result{HotName: "豆瓣热榜"}, err
 	}
-	var content []map[string]interface{}
 	doc.Find(".channel-item").Each(func(i int, s *goquery.Selection) {
 		title := s.Find("h3 a").Text()
 		href, boolHref := s.Find("h3 a").Attr("href")
@@ -198,11 +202,12 @@ func (c Crawler) CrawlerDouBan() Result {
 		}
 
 	})
-	return Result{"豆瓣热榜", content, time.Now()}
+	return Result{"豆瓣热榜", content, time.Now()}, nil
 }
 
 // CrawlerTianYa 爬取天涯热榜
-func (c Crawler) CrawlerTianYa() Result {
+func (c Crawler) CrawlerTianYa() (Result, error) {
+	var content []map[string]interface{}
 	url := "http://bbs.tianya.cn/hotArticle.jsp"
 	client := &http.Client{
 		Timeout: time.Second * 10,
@@ -210,14 +215,14 @@ func (c Crawler) CrawlerTianYa() Result {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Println("CrawlerTianYa http.NewRequest err:", err)
-		return Result{}
+		return Result{HotName: "天涯热榜"}, err
 	}
 	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
 	req.Header.Add("Host", "bbs.tianya.cn")
 	res, err := client.Do(req)
 	if err != nil {
 		fmt.Println("CrawlerTianYa client.Do err:", err)
-		return Result{}
+		return Result{HotName: "天涯热榜"}, err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -231,21 +236,21 @@ func (c Crawler) CrawlerTianYa() Result {
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
 		fmt.Println("CrawlerTianYa goquery.NewDocumentFromReader err:", err)
-		return Result{}
+		return Result{HotName: "天涯热榜"}, err
 	}
-	var content []map[string]interface{}
 	doc.Find(".mt5 table tbody tr").Slice(1, -1).Each(func(i int, selection *goquery.Selection) {
 		title := selection.Find("td[class=td-title] a").Text()
 		href := "http://bbs.tianya.cn" + selection.Find("td[class=td-title] a").AttrOr("href", "")
 		content = append(content, map[string]interface{}{"title": title, "href": href})
 	})
 
-	return Result{"天涯热榜", content, time.Now()}
+	return Result{"天涯热榜", content, time.Now()}, nil
 
 }
 
 // CrawlerGithub 爬取github trending
-func (c Crawler) CrawlerGithub() Result {
+func (c Crawler) CrawlerGithub() (Result, error) {
+	var content []map[string]interface{}
 	url := "https://github.com/trending"
 	client := &http.Client{
 		Timeout: time.Second * 20,
@@ -253,7 +258,7 @@ func (c Crawler) CrawlerGithub() Result {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Println("CrawlerDouBan http.NewRequest err:", err)
-		return Result{}
+		return Result{HotName: "GitHub Trending"}, err
 	}
 	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
 	req.Header.Add("Referer", "https://github.com/explore")
@@ -261,7 +266,7 @@ func (c Crawler) CrawlerGithub() Result {
 	res, err := client.Do(req)
 	if err != nil {
 		fmt.Println("CrawlerDouBan client.Do err:", err)
-		return Result{}
+		return Result{HotName: "GitHub Trending"}, err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -275,9 +280,8 @@ func (c Crawler) CrawlerGithub() Result {
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
 		fmt.Println("CrawlerDouBan goquery.NewDocumentFromReader err:", err)
-		return Result{}
+		return Result{HotName: "GitHub Trending"}, err
 	}
-	var content []map[string]interface{}
 	doc.Find("article[class=Box-row]").Each(func(i int, selection *goquery.Selection) {
 		title := strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(selection.Find("h1 a").Text()), "\n", ""), " ", "")
 		href := "https://github.com/" + selection.Find("h1 a").AttrOr("href", "")
@@ -285,11 +289,12 @@ func (c Crawler) CrawlerGithub() Result {
 		content = append(content, map[string]interface{}{"title": title + "<---->" + describe, "href": href})
 
 	})
-	return Result{"GitHub Trending", content, time.Now()}
+	return Result{"GitHub Trending", content, time.Now()}, nil
 }
 
 // CrawlerWangYiYun 获取网易云音乐
-func (c Crawler) CrawlerWangYiYun() Result {
+func (c Crawler) CrawlerWangYiYun() (Result, error) {
+	var content []map[string]interface{}
 	url := "https://music.163.com/discover/toplist?id=19723756"
 	client := &http.Client{
 		Timeout: time.Second * 10,
@@ -297,7 +302,7 @@ func (c Crawler) CrawlerWangYiYun() Result {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Println("CrawlerWangYiYun http.NewRequest err:", err)
-		return Result{}
+		return Result{HotName: "云音乐飙升榜"}, err
 	}
 	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
 	req.Header.Add("authority", "music.163.com")
@@ -305,7 +310,7 @@ func (c Crawler) CrawlerWangYiYun() Result {
 	res, err := client.Do(req)
 	if err != nil {
 		fmt.Println("CrawlerWangYiYun client.Do err:", err)
-		return Result{}
+		return Result{HotName: "云音乐飙升榜"}, err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -319,9 +324,8 @@ func (c Crawler) CrawlerWangYiYun() Result {
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
 		fmt.Println("CrawlerWangYiYun goquery.NewDocumentFromReader err:", err)
-		return Result{}
+		return Result{HotName: "云音乐飙升榜"}, err
 	}
-	var content []map[string]interface{}
 
 	doc.Find("div[id=song-list-pre-cache] ul[class=f-hide] li").Each(func(i int, selection *goquery.Selection) {
 		title := selection.Find("a").Text()
@@ -329,10 +333,10 @@ func (c Crawler) CrawlerWangYiYun() Result {
 		content = append(content, map[string]interface{}{"title": title, "href": href})
 
 	})
-	return Result{"云音乐飙升榜", content, time.Now()}
+	return Result{"云音乐飙升榜", content, time.Now()}, nil
 }
 
-func (c Crawler) CrawlerCSDN() Result {
+func (c Crawler) CrawlerCSDN() (Result, error) {
 	client := &http.Client{
 		Timeout: time.Second * 10,
 	}
@@ -373,7 +377,124 @@ func (c Crawler) CrawlerCSDN() Result {
 		}
 	}
 
-	return Result{"CSDN热榜", content, time.Now()}
+	return Result{"CSDN热榜", content, time.Now()}, nil
+}
+
+const MaXINT64 = 9223372036854775807
+
+func Min(nums ...int) int {
+	var minNum int = MaXINT64
+	for _, num := range nums {
+		if num < minNum {
+			minNum = num
+		}
+	}
+	return minNum
+}
+func toHex(ten int) string {
+	m := 0
+	hex := make([]int, 0)
+	for {
+		m = ten % 16
+		ten = ten / 16
+		if ten == 0 {
+			hex = append(hex, m)
+			break
+		}
+		hex = append(hex, m)
+	}
+	hexStr := []string{}
+	for i := len(hex) - 1; i >= 0; i-- {
+		if hex[i] >= 10 {
+			hexStr = append(hexStr, fmt.Sprintf("%c", 'a'+hex[i]-10))
+		} else {
+			hexStr = append(hexStr, fmt.Sprintf("%d", hex[i]))
+		}
+	}
+	return strings.Join(hexStr, "")
+}
+
+// CreatId 微信读书根据bookId转为bookDetail
+func CreatId(bookId string) string {
+	m := md5.New()
+	m.Write([]byte(bookId))
+	str := hex.EncodeToString(m.Sum(nil))
+	strSub := str[0:3]
+	length := len(bookId)
+	var cStr string
+	for a := 0; a <= length+1; a++ {
+		b := bookId[a:Min(a+9, length)]
+		bInt, _ := strconv.Atoi(b)
+		cStr = toHex(bInt)
+		a = a + 9
+		if a >= length {
+			break
+		}
+
+	}
+	strSub = strSub + "3"
+	strSub = strSub + "2" + str[len(str)-2:]
+	for j := 0; j < len(cStr); j++ {
+
+	}
+	n := toHex(len(cStr))
+	if len(n) == 1 {
+		n = "0" + n
+	}
+	strSub = strSub + n + cStr
+	if len(strSub) < 20 {
+		strSub += str[0 : 20-len(strSub)]
+	}
+	m.Write([]byte(strSub))
+	strSub += hex.EncodeToString(m.Sum(nil))[0:3]
+	return strSub
+}
+
+//CrawlerWeread 获取微信读书热榜
+func (c Crawler) CrawlerWeread() (Result, error) {
+	client := &http.Client{
+		Timeout: time.Second * 10,
+	}
+	maxIndexs := [4]string{"0", "20", "40"}
+	var content []map[string]interface{}
+	for _, maxIndex := range maxIndexs {
+		url := "https://weread.qq.com/web/bookListInCategory/rising?maxIndex=" + maxIndex + "&rank=1"
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			fmt.Println("CrawlerWeread http.NewRequest err:", err)
+			continue
+		}
+		req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
+		res, err := client.Do(req)
+		if err != nil {
+			fmt.Println("CrawlerWeread client.Do err:", err)
+			continue
+		}
+		str, _ := io.ReadAll(res.Body)
+		j, err := simplejson.NewJson(str)
+		if err != nil {
+			fmt.Println("CrawlerWeread simplejson.NewJson err:", err)
+			continue
+		}
+		func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				fmt.Println("err:", err)
+			}
+		}(res.Body)
+		dataJson := j.Get("books")
+		dataArr := j.Get("books").MustArray()
+		for index := range dataArr {
+			info := dataJson.GetIndex(index)
+			title := info.Get("bookInfo").Get("title").MustString()
+			author := info.Get("bookInfo").Get("author").MustString()
+			bookId := info.Get("bookInfo").Get("bookId").MustString()
+			href := "https://weread.qq.com/web/bookDetail/" + CreatId(bookId)
+			content = append(content, map[string]interface{}{"title": title + "<--->作者:" + author, "href": href})
+		}
+	}
+
+	return Result{"微信读书飙升榜", content, time.Now()}, nil
 }
 
 func ExecGetData(c Crawler, cr chan Result) {
@@ -392,7 +513,7 @@ func RunCrawlerAndWrite() {
 	// 文件创建
 	fmt.Println("开始时间：", time.Now())
 	allCrawler := []string{"CrawlerWeiBo", "CrawlerZhiHu", "CrawlerTieBa", "CrawlerDouBan", "CrawlerTianYa",
-		"CrawlerGithub", "CrawlerWangYiYun", "CrawlerCSDN"}
+		"CrawlerGithub", "CrawlerWangYiYun", "CrawlerCSDN", "CrawlerWeread"}
 	cr := make(chan Result, len(allCrawler))
 	for _, value := range allCrawler {
 		wg.Add(1)
