@@ -1,8 +1,6 @@
 package cralwer
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
@@ -13,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -380,119 +377,44 @@ func (c Crawler) CrawlerCSDN() (Result, error) {
 	return Result{"CSDN热榜", content, time.Now()}, nil
 }
 
-const MaXINT64 = 9223372036854775807
-
-func Min(nums ...int) int {
-	var minNum int = MaXINT64
-	for _, num := range nums {
-		if num < minNum {
-			minNum = num
-		}
-	}
-	return minNum
-}
-func toHex(ten int) string {
-	m := 0
-	hex := make([]int, 0)
-	for {
-		m = ten % 16
-		ten = ten / 16
-		if ten == 0 {
-			hex = append(hex, m)
-			break
-		}
-		hex = append(hex, m)
-	}
-	hexStr := []string{}
-	for i := len(hex) - 1; i >= 0; i-- {
-		if hex[i] >= 10 {
-			hexStr = append(hexStr, fmt.Sprintf("%c", 'a'+hex[i]-10))
-		} else {
-			hexStr = append(hexStr, fmt.Sprintf("%d", hex[i]))
-		}
-	}
-	return strings.Join(hexStr, "")
-}
-
-// CreatId 微信读书根据bookId转为bookDetail
-func CreatId(bookId string) string {
-	m := md5.New()
-	m.Write([]byte(bookId))
-	str := hex.EncodeToString(m.Sum(nil))
-	strSub := str[0:3]
-	length := len(bookId)
-	var cStr string
-	for a := 0; a <= length+1; a++ {
-		b := bookId[a:Min(a+9, length)]
-		bInt, _ := strconv.Atoi(b)
-		cStr = toHex(bInt)
-		a = a + 9
-		if a >= length {
-			break
-		}
-
-	}
-	strSub = strSub + "3"
-	strSub = strSub + "2" + str[len(str)-2:]
-	for j := 0; j < len(cStr); j++ {
-
-	}
-	n := toHex(len(cStr))
-	if len(n) == 1 {
-		n = "0" + n
-	}
-	strSub = strSub + n + cStr
-	if len(strSub) < 20 {
-		strSub += str[0 : 20-len(strSub)]
-	}
-	m.Write([]byte(strSub))
-	strSub += hex.EncodeToString(m.Sum(nil))[0:3]
-	return strSub
-}
-
 //CrawlerWeread 获取微信读书热榜
 func (c Crawler) CrawlerWeread() (Result, error) {
 	client := &http.Client{
 		Timeout: time.Second * 10,
 	}
-	maxIndexs := [4]string{"0", "20", "40"}
 	var content []map[string]interface{}
-	for _, maxIndex := range maxIndexs {
-		url := "https://weread.qq.com/web/bookListInCategory/rising?maxIndex=" + maxIndex + "&rank=1"
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			fmt.Println("CrawlerWeread http.NewRequest err:", err)
-			continue
-		}
-		req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
-		res, err := client.Do(req)
-		if err != nil {
-			fmt.Println("CrawlerWeread client.Do err:", err)
-			continue
-		}
-		str, _ := io.ReadAll(res.Body)
-		j, err := simplejson.NewJson(str)
-		if err != nil {
-			fmt.Println("CrawlerWeread simplejson.NewJson err:", err)
-			continue
-		}
-		func(Body io.ReadCloser) {
-			err := Body.Close()
-			if err != nil {
-				fmt.Println("err:", err)
-			}
-		}(res.Body)
-		dataJson := j.Get("books")
-		dataArr := j.Get("books").MustArray()
-		for index := range dataArr {
-			info := dataJson.GetIndex(index)
-			title := info.Get("bookInfo").Get("title").MustString()
-			author := info.Get("bookInfo").Get("author").MustString()
-			bookId := info.Get("bookInfo").Get("bookId").MustString()
-			href := "https://weread.qq.com/web/bookDetail/" + CreatId(bookId)
-			content = append(content, map[string]interface{}{"title": title + "<--->作者:" + author, "href": href})
-		}
+
+	url := "https://weread.qq.com/web/category/rising"
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Println("CrawlerWeread http.NewRequest err:", err)
+		return Result{HotName: "微信读书飙升榜"}, err
 	}
+	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println("CrawlerWangYiYun client.Do err:", err)
+		return Result{HotName: "微信读书飙升榜"}, err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println("err:", err)
+		}
+	}(res.Body)
+	if res.StatusCode != 200 {
+		log.Fatalf("status code error: %d %s", res.StatusCode, res.Status)
+	}
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		fmt.Println("CrawlerWangYiYun goquery.NewDocumentFromReader err:", err)
+		return Result{HotName: "微信读书飙升榜"}, err
+	}
+	doc.Find(".ranking_content_bookList li[class=wr_bookList_item]").Each(func(i int, selection *goquery.Selection) {
+		title := selection.Find("p[class=wr_bookList_item_title]").Text()
+		href := "https://weread.qq.com" + selection.Find("a[class=wr_bookList_item_link]").AttrOr("href", "")
+		content = append(content, map[string]interface{}{"title": title, "href": href})
+	})
 
 	return Result{"微信读书飙升榜", content, time.Now()}, nil
 }
