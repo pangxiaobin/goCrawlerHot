@@ -1,10 +1,13 @@
 package cralwer
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/bitly/go-simplejson"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 	"io"
 	"log"
 	"net/http"
@@ -419,6 +422,52 @@ func (c Crawler) CrawlerWeread() (Result, error) {
 	return Result{"微信读书飙升榜", content, time.Now()}, nil
 }
 
+// Crawler52PoJie 吾爱破解
+func (c Crawler) Crawler52PoJie() (Result, error) {
+	client := &http.Client{
+		Timeout: time.Second * 10,
+	}
+	var content []map[string]interface{}
+
+	url := "https://www.52pojie.cn/forum.php?mod=guide&view=hot"
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Println("Crawler52PoJie http.NewRequest err:", err)
+		return Result{HotName: "吾爱破解"}, err
+	}
+	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Crawler52PoJie client.Do err:", err)
+		return Result{HotName: "吾爱破解"}, err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println("err:", err)
+		}
+	}(res.Body)
+	if res.StatusCode != 200 {
+		log.Fatalf("status code error: %d %s", res.StatusCode, res.Status)
+	}
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		fmt.Println("Crawler52PoJie goquery.NewDocumentFromReader err:", err)
+		return Result{HotName: "吾爱破解"}, err
+	}
+	doc.Find("#threadlist .bm_c tbody").Each(func(i int, selection *goquery.Selection) {
+		gbkTitle := selection.Find("tr th a[class=xst]").Text()
+		title, err := io.ReadAll(transform.NewReader(bytes.NewReader([]byte(gbkTitle)), simplifiedchinese.GBK.NewDecoder()))
+		if err != nil {
+			fmt.Println("52 gbk to utf8 err:", err)
+		}
+		href := "https://www.52pojie.cn/forum.php?mod=guide&view=hot" + selection.Find("tr th a").AttrOr("href", "")
+		content = append(content, map[string]interface{}{"title": string(title), "href": href})
+	})
+
+	return Result{"吾爱破解", content, time.Now()}, nil
+}
+
 func ExecGetData(c Crawler, cr chan Result) {
 	reflectValue := reflect.ValueOf(c)
 	crawler := reflectValue.MethodByName(c.crawlerName)
@@ -435,7 +484,7 @@ func RunCrawlerAndWrite() {
 	// 文件创建
 	fmt.Println("开始时间：", time.Now())
 	allCrawler := []string{"CrawlerWeiBo", "CrawlerZhiHu", "CrawlerTieBa", "CrawlerDouBan", "CrawlerTianYa",
-		"CrawlerGithub", "CrawlerWangYiYun", "CrawlerCSDN", "CrawlerWeread"}
+		"CrawlerGithub", "CrawlerWangYiYun", "CrawlerCSDN", "CrawlerWeread", "Crawler52PoJie"}
 	cr := make(chan Result, len(allCrawler))
 	for _, value := range allCrawler {
 		wg.Add(1)
