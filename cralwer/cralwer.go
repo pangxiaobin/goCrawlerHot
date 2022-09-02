@@ -46,9 +46,11 @@ func (c Crawler) CrawlerWeiBo() (Result, error) {
 	res, err := client.Do(req)
 	if err != nil {
 		fmt.Println("client.Do err:", err)
+		return Result{HotName: "新浪微博"}, err
 	}
 	if res.StatusCode != 200 {
-		log.Fatalf("status code error: %d %s", res.StatusCode, res.Status)
+		log.Printf(" CrawlerWeiBo status code error: %d %s", res.StatusCode, res.Status)
+		return Result{HotName: "新浪微博"}, err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -187,7 +189,8 @@ func (c Crawler) CrawlerDouBan() (Result, error) {
 		}
 	}(res.Body)
 	if res.StatusCode != 200 {
-		log.Fatalf("status code error: %d %s", res.StatusCode, res.Status)
+		log.Printf("CrawlerDouBan status code error: %d %s", res.StatusCode, res.Status)
+		return Result{HotName: "豆瓣热榜"}, err
 	}
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
@@ -231,7 +234,8 @@ func (c Crawler) CrawlerTianYa() (Result, error) {
 		}
 	}(res.Body)
 	if res.StatusCode != 200 {
-		log.Fatalf("status code error: %d %s", res.StatusCode, res.Status)
+		log.Printf("CrawlerTianYa status code error: %d %s", res.StatusCode, res.Status)
+		return Result{HotName: "天涯热榜"}, err
 	}
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
@@ -275,7 +279,8 @@ func (c Crawler) CrawlerGithub() (Result, error) {
 		}
 	}(res.Body)
 	if res.StatusCode != 200 {
-		log.Fatalf("status code error: %d %s", res.StatusCode, res.Status)
+		log.Printf("CrawlerDouBan status code error: %d %s", res.StatusCode, res.Status)
+		return Result{HotName: "GitHub Trending"}, err
 	}
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
@@ -319,7 +324,8 @@ func (c Crawler) CrawlerWangYiYun() (Result, error) {
 		}
 	}(res.Body)
 	if res.StatusCode != 200 {
-		log.Fatalf("status code error: %d %s", res.StatusCode, res.Status)
+		log.Printf("CrawlerWangYiYun status code error: %d %s", res.StatusCode, res.Status)
+		return Result{HotName: "云音乐飙升榜"}, err
 	}
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
@@ -406,7 +412,8 @@ func (c Crawler) CrawlerWeread() (Result, error) {
 		}
 	}(res.Body)
 	if res.StatusCode != 200 {
-		log.Fatalf("status code error: %d %s", res.StatusCode, res.Status)
+		log.Printf("CrawlerWangYiYun status code error: %d %s", res.StatusCode, res.Status)
+		return Result{HotName: "微信读书飙升榜"}, err
 	}
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
@@ -448,7 +455,8 @@ func (c Crawler) Crawler52PoJie() (Result, error) {
 		}
 	}(res.Body)
 	if res.StatusCode != 200 {
-		log.Fatalf("status code error: %d %s", res.StatusCode, res.Status)
+		log.Printf("Crawler52PoJie status code error: %d %s", res.StatusCode, res.Status)
+		return Result{HotName: "吾爱破解"}, err
 	}
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
@@ -518,7 +526,7 @@ func RunCrawlerAndWrite() {
 func RunTicker() {
 	RunCrawlerAndWrite()
 	// 定时任务, 2分钟爬取一次
-	ticker := time.NewTicker(60 * 2 * time.Second)
+	ticker := time.NewTicker(60 * 10 * time.Second)
 
 	for range ticker.C {
 		RunCrawlerAndWrite()
