@@ -62,6 +62,7 @@ func (c Crawler) CrawlerWeiBo() (Result, error) {
 	j, err := simplejson.NewJson(str)
 	if err != nil {
 		fmt.Println(" simplejson.NewJson err:", err)
+		return Result{HotName: "新浪微博"}, err
 	}
 	cardGroup := j.Get("data").Get("cards").GetIndex(0).Get("card_group").MustArray()
 	for _, val := range cardGroup {
