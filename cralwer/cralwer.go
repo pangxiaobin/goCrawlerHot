@@ -477,6 +477,59 @@ func (c Crawler) Crawler52PoJie() (Result, error) {
 	return Result{"吾爱破解", content, time.Now()}, nil
 }
 
+// CrawlerDouYin 抖音
+func (c Crawler) CrawlerDouYin() (Result, error) {
+	var content []map[string]interface{}
+	url := "https://www.douyin.com/aweme/v1/web/hot/search/list/?device_platform=webapp&aid=6383&channel=channel_pc_w" +
+		"eb&detail_list=1&source=6&pc_client_type=1&version_code=170400&version_name=17.4.0&cookie_enabled=true&screen" +
+		"_width=1440&screen_height=900&browser_language=en&browser_platform=MacIntel&browser_name=Chrome&browser_" +
+		"version=107.0.0.0&browser_online=true&engine_name=Blink&engine_version=107.0.0.0&os_name=Mac+OS&os_version=" +
+		"10.15.7&cpu_core_num=8&device_memory=8&platform=PC&downlink=10&effective_type=4g&round_trip_time=100&webid" +
+		"=7168107943232308770&msToken=x872gxuQF3TKQoShjH0dOxcP5vMWOtp9vE3gAhYMVfvklclynZ5uOj8KsIw_WML0fzol" +
+		"EFqOw4NUSbVwMCIEqGNEs0tFx7hyogm9SI43HP4f__VTIc-mZgOCAjMj7A==&X-Bogus=DFSzswVOS1UANtnuS8c4f37TlqCw"
+	timeout := 5 * time.Second
+	client := &http.Client{
+		Timeout: timeout,
+	}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Println("CrawlerDouYin http.NewRequest err:", err)
+		return Result{HotName: "抖音热榜"}, err
+	}
+	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36")
+	req.Header.Add("authority", "www.douyin.com")
+	req.Header.Add("referer", "https://www.douyin.com/hot")
+	req.Header.Add("sec-ch-ua-platform", "macOS")
+	req.Header.Add("accept", "application/json, text/plain, */*")
+	res, err := client.Do(req)
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println("err", err)
+		}
+	}(res.Body)
+	if err != nil {
+		fmt.Println("CrawlerDouYin client.Do err:", err)
+		return Result{HotName: "抖音热榜"}, err
+	}
+	body, _ := io.ReadAll(res.Body)
+	j, err := simplejson.NewJson(body)
+	if err != nil {
+		fmt.Println("")
+		return Result{HotName: "抖音热榜"}, err
+	}
+	dataJson := j.Get("data").Get("word_list")
+	dataArr := j.Get("data").Get("word_list").MustArray()
+	for index := range dataArr {
+		info := dataJson.GetIndex(index)
+		title := info.Get("word").MustString()
+		href := "https://www.douyin.com/hot/" + info.Get("sentence_id").MustString()
+		content = append(content, map[string]interface{}{"title": title, "href": href})
+	}
+
+	return Result{"抖音热榜", content, time.Now()}, nil
+}
+
 func ExecGetData(c Crawler, cr chan Result) {
 	reflectValue := reflect.ValueOf(c)
 	crawler := reflectValue.MethodByName(c.crawlerName)
@@ -493,7 +546,7 @@ func RunCrawlerAndWrite() {
 	// 文件创建
 	fmt.Println("开始时间：", time.Now())
 	allCrawler := []string{"CrawlerWeiBo", "CrawlerZhiHu", "CrawlerTieBa", "CrawlerDouBan", "CrawlerTianYa",
-		"CrawlerGithub", "CrawlerWangYiYun", "CrawlerCSDN", "CrawlerWeread", "Crawler52PoJie"}
+		"CrawlerGithub", "CrawlerWangYiYun", "CrawlerCSDN", "CrawlerWeread", "Crawler52PoJie", "CrawlerDouYin"}
 	cr := make(chan Result, len(allCrawler))
 	for _, value := range allCrawler {
 		wg.Add(1)

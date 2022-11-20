@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"goCrawlerHot/cralwer"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -26,7 +27,7 @@ func init() {
 }
 
 func main() {
-	//go cralwer.RunTicker()
+	go cralwer.RunTicker()
 	http.Handle("/layui/", http.StripPrefix("/layui/", http.FileServer(http.Dir("./html/layui/"))))
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		temFilePath := filepath.Join(baseDir, "html", "index.html")
