@@ -22,7 +22,7 @@ import (
 type Result struct {
 	HotName     string                   `json:"hot_name"`
 	Content     []map[string]interface{} `json:"content"`
-	CrawlerTime time.Time                `json:"crawler_time"`
+	CrawlerTime string                   `json:"crawler_time"`
 }
 
 type Crawler struct {
@@ -70,7 +70,7 @@ func (c Crawler) CrawlerWeiBo() (Result, error) {
 		href := fmt.Sprintf("https://s.weibo.com/weibo?q=%%23%s%%23", title)
 		content = append(content, map[string]interface{}{"title": title, "href": href})
 	}
-	result := Result{"新浪微博", content, time.Now()}
+	result := Result{"新浪微博", content, time.Now().Format("2006-01-02 15:04:05")}
 
 	return result, nil
 }
@@ -118,7 +118,7 @@ func (c Crawler) CrawlerZhiHu() (Result, error) {
 		content = append(content, map[string]interface{}{"title": title, "href": href})
 	}
 
-	return Result{"知乎热榜", content, time.Now()}, nil
+	return Result{"知乎热榜", content, time.Now().Format("2006-01-02 15:04:05")}, nil
 }
 
 // CrawlerTieBa 爬取贴吧热榜
@@ -159,7 +159,7 @@ func (c Crawler) CrawlerTieBa() (Result, error) {
 		href := topicList.GetIndex(index).Get("topic_url").MustString()
 		content = append(content, map[string]interface{}{"title": title, "href": href})
 	}
-	return Result{"贴吧", content, time.Now()}, nil
+	return Result{"贴吧", content, time.Now().Format("2006-01-02 15:04:05")}, nil
 
 }
 
@@ -206,7 +206,7 @@ func (c Crawler) CrawlerDouBan() (Result, error) {
 		}
 
 	})
-	return Result{"豆瓣热榜", content, time.Now()}, nil
+	return Result{"豆瓣热榜", content, time.Now().Format("2006-01-02 15:04:05")}, nil
 }
 
 // CrawlerTianYa 爬取天涯热榜
@@ -249,7 +249,7 @@ func (c Crawler) CrawlerTianYa() (Result, error) {
 		content = append(content, map[string]interface{}{"title": title, "href": href})
 	})
 
-	return Result{"天涯热榜", content, time.Now()}, nil
+	return Result{"天涯热榜", content, time.Now().Format("2006-01-02 15:04:05")}, nil
 
 }
 
@@ -295,7 +295,7 @@ func (c Crawler) CrawlerGithub() (Result, error) {
 		content = append(content, map[string]interface{}{"title": title + "<---->" + describe, "href": href})
 
 	})
-	return Result{"GitHub Trending", content, time.Now()}, nil
+	return Result{"GitHub Trending", content, time.Now().Format("2006-01-02 15:04:05")}, nil
 }
 
 // CrawlerWangYiYun 获取网易云音乐
@@ -340,7 +340,7 @@ func (c Crawler) CrawlerWangYiYun() (Result, error) {
 		content = append(content, map[string]interface{}{"title": title, "href": href})
 
 	})
-	return Result{"云音乐飙升榜", content, time.Now()}, nil
+	return Result{"云音乐飙升榜", content, time.Now().Format("2006-01-02 15:04:05")}, nil
 }
 
 func (c Crawler) CrawlerCSDN() (Result, error) {
@@ -384,7 +384,7 @@ func (c Crawler) CrawlerCSDN() (Result, error) {
 		}
 	}
 
-	return Result{"CSDN热榜", content, time.Now()}, nil
+	return Result{"CSDN热榜", content, time.Now().Format("2006-01-02 15:04:05")}, nil
 }
 
 //CrawlerWeread 获取微信读书热榜
@@ -427,7 +427,7 @@ func (c Crawler) CrawlerWeread() (Result, error) {
 		content = append(content, map[string]interface{}{"title": title, "href": href})
 	})
 
-	return Result{"微信读书飙升榜", content, time.Now()}, nil
+	return Result{"微信读书飙升榜", content, time.Now().Format("2006-01-02 15:04:05")}, nil
 }
 
 // Crawler52PoJie 吾爱破解
@@ -474,7 +474,7 @@ func (c Crawler) Crawler52PoJie() (Result, error) {
 		content = append(content, map[string]interface{}{"title": string(title), "href": href})
 	})
 
-	return Result{"吾爱破解", content, time.Now()}, nil
+	return Result{"吾爱破解", content, time.Now().Format("2006-01-02 15:04:05")}, nil
 }
 
 // CrawlerDouYin 抖音
@@ -527,7 +527,7 @@ func (c Crawler) CrawlerDouYin() (Result, error) {
 		content = append(content, map[string]interface{}{"title": title, "href": href})
 	}
 
-	return Result{"抖音热榜", content, time.Now()}, nil
+	return Result{"抖音热榜", content, time.Now().Format("2006-01-02 15:04:05")}, nil
 }
 
 func ExecGetData(c Crawler, cr chan Result) {
@@ -544,7 +544,7 @@ var wg sync.WaitGroup
 //RunCrawlerAndWrite  爬取数据并写入文件
 func RunCrawlerAndWrite() {
 	// 文件创建
-	fmt.Println("开始时间：", time.Now())
+	fmt.Println("开始时间：", time.Now().Format("2006-01-02 15:04:05"))
 	allCrawler := []string{"CrawlerWeiBo", "CrawlerZhiHu", "CrawlerTieBa", "CrawlerDouBan", "CrawlerTianYa",
 		"CrawlerGithub", "CrawlerWangYiYun", "CrawlerCSDN", "CrawlerWeread", "Crawler52PoJie", "CrawlerDouYin"}
 	cr := make(chan Result, len(allCrawler))
@@ -555,7 +555,7 @@ func RunCrawlerAndWrite() {
 		go ExecGetData(crawler, cr)
 	}
 	wg.Wait()
-	fmt.Print("抓取结束：", time.Now())
+	fmt.Print("抓取结束：", time.Now().Format("2006-01-02 15:04:05"))
 	close(cr)
 	var resultInfo []Result
 	for val := range cr {

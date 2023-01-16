@@ -10,13 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"text/template"
-	"time"
 )
 
 type Result struct {
 	HotName     string                   `json:"hot_name"`
 	Content     []map[string]interface{} `json:"content"`
-	CrawlerTime time.Time                `json:"crawler_time"`
+	CrawlerTime string                   `json:"crawler_time"`
 }
 
 var baseDir string
@@ -36,7 +35,7 @@ func main() {
 			fmt.Println("read html failed, err:", err)
 			return
 		}
-		// 自定义一个夸人的模板函数
+		// 自定义一个模板函数
 		addNum := func(arg int) (int, error) {
 			return arg + 1, nil
 		}

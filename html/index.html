@@ -37,9 +37,9 @@
     <ul class="layui-tab-title">
       {{ range $index, $hot := .}}
       {{if eq $index 0}}
-      <li class="layui-this">{{ $hot.HotName }}</li>
+      <li class="layui-this" title="{{$hot.CrawlerTime}}">{{ $hot.HotName }}</li>
       {{ else }}
-      <li>{{ $hot.HotName }}</li>
+      <li title="{{$hot.CrawlerTime}}">{{ $hot.HotName }}</li>
       {{end}}
       {{else}}
       <li>no data</li>
