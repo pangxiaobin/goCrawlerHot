@@ -289,8 +289,8 @@ func (c Crawler) CrawlerGithub() (Result, error) {
 		return Result{HotName: "GitHub Trending"}, err
 	}
 	doc.Find("article[class=Box-row]").Each(func(i int, selection *goquery.Selection) {
-		title := strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(selection.Find("h1 a").Text()), "\n", ""), " ", "")
-		href := "https://github.com/" + selection.Find("h1 a").AttrOr("href", "")
+		title := strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(selection.Find("h2 a").Text()), "\n", ""), " ", "")
+		href := "https://github.com/" + selection.Find("h2 a").AttrOr("href", "")
 		describe := strings.TrimSpace(selection.Find("p").Text())
 		content = append(content, map[string]interface{}{"title": title + "<---->" + describe, "href": href})
 
